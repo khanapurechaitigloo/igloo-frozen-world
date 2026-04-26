@@ -26,6 +26,7 @@ const panelTags = document.getElementById('panel-tags')
 const panelAccent = document.getElementById('panel-accent')
 const panelMood = document.getElementById('panel-mood')
 const closeBtn = document.getElementById('close-panel')
+const backBtn = document.getElementById('back-btn')
 
 function showBeerPanel(beer) {
   panelName.textContent = beer.name
@@ -40,13 +41,25 @@ function showBeerPanel(beer) {
 function hideBeerPanel() {
   panel.classList.remove('visible')
   world.deselect()
+  world.flyBack()
 }
 
 closeBtn.addEventListener('click', hideBeerPanel)
+backBtn.addEventListener('click', () => {
+  hideBeerPanel()
+})
 
 // ── Click handling ──
 world.onSelect((beerId) => {
   if (!beerId) { hideBeerPanel(); return }
   const beer = BEERS.find(b => b.id === beerId)
   if (beer) showBeerPanel(beer)
+})
+
+world.onFlyTo(() => {
+  backBtn.classList.remove('hidden')
+})
+
+world.onFlyBack(() => {
+  backBtn.classList.add('hidden')
 })

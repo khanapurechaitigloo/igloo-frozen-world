@@ -9,6 +9,11 @@ export class World {
     this.selectCallback = null
     this.cottages = {} // beerId → { group, glowMesh, style }
     this.clock = new THREE.Clock()
+    this.isFlying = false
+    this.savedCameraState = null
+    this.flyToCallback = null
+    this.flyBackCallback = null
+    this.interactiveObjects = [] // all clickable objects (cottages, penguins, etc)
 
     this._initRenderer()
     this._initScene()
@@ -25,6 +30,10 @@ export class World {
     this._buildPaths()
     this._buildStringLights()
     this._buildSnowfall()
+    this._buildPenguinsAndHole()
+    this._buildIceFishingHut()
+    this._buildBeerGarden()
+    this._buildArcticFox()
     this._initRaycaster()
 
     this._animate = this._animate.bind(this)
@@ -32,6 +41,8 @@ export class World {
   }
 
   onSelect(cb) { this.selectCallback = cb }
+  onFlyTo(cb) { this.flyToCallback = cb }
+  onFlyBack(cb) { this.flyBackCallback = cb }
 
   deselect() {
     this.selectedBeer = null
@@ -388,7 +399,14 @@ export class World {
         new THREE.MeshBasicMaterial({ visible: false })
       )
       hitbox.position.y = 1
-      hitbox.userData = { beerId: beer.id, type: 'cottage' }
+      // Hero camera position for fly-in: offset in front of the cottage door
+      const heroDist = 4
+      const heroAngle = Math.atan2(beer.x, beer.z) // angle from center to cottage
+      hitbox.userData = {
+        beerId: beer.id, type: 'cottage',
+        heroTarget: [beer.x, 1.0, beer.z],
+        heroPosition: [beer.x + Math.sin(heroAngle) * heroDist, 2.5, beer.z + Math.cos(heroAngle) * heroDist],
+      }
       g.add(hitbox)
 
       this.scene.add(g)
@@ -685,32 +703,734 @@ export class World {
     this.scene.add(this.snowPoints)
   }
 
+  // ── Penguins + Ice Hole ──
+  _buildPenguinsAndHole() {
+    const lakeX = 10, lakeZ = 8
+    const holeRadius = 0.8
+
+    // Frozen lake — dark reflective circle
+    const lakeGeo = new THREE.CircleGeometry(3, 32)
+    lakeGeo.rotateX(-Math.PI / 2)
+    const lakeMat = new THREE.MeshStandardMaterial({
+      color: 0x1a2a3a, roughness: 0.1, metalness: 0.3,
+      transparent: true, opacity: 0.85,
+    })
+    const lake = new THREE.Mesh(lakeGeo, lakeMat)
+    lake.position.set(lakeX, 0.02, lakeZ)
+    this.scene.add(lake)
+
+    // Ice hole — dark circle in the lake
+    const holeGeo = new THREE.CircleGeometry(holeRadius, 24)
+    holeGeo.rotateX(-Math.PI / 2)
+    const holeMat = new THREE.MeshStandardMaterial({
+      color: 0x0a1520, roughness: 0.05, metalness: 0.1,
+    })
+    const hole = new THREE.Mesh(holeGeo, holeMat)
+    hole.position.set(lakeX, 0.03, lakeZ)
+    this.scene.add(hole)
+
+    // Ice edge ring
+    const ringGeo = new THREE.RingGeometry(holeRadius, holeRadius + 0.12, 24)
+    ringGeo.rotateX(-Math.PI / 2)
+    const ringMat = new THREE.MeshStandardMaterial({
+      color: 0xb8d8e8, roughness: 0.4, metalness: 0.1, transparent: true, opacity: 0.7,
+    })
+    const ring = new THREE.Mesh(ringGeo, ringMat)
+    ring.position.set(lakeX, 0.035, lakeZ)
+    this.scene.add(ring)
+
+    // Create 3 penguins
+    this.penguins = []
+    const penguinPositions = [
+      [lakeX - 0.6, 0, lakeZ + 0.3],
+      [lakeX + 0.5, 0, lakeZ - 0.4],
+      [lakeX + 0.1, 0, lakeZ + 0.7],
+    ]
+
+    penguinPositions.forEach((pos, i) => {
+      const pg = new THREE.Group()
+      pg.position.set(...pos)
+
+      // Body — oval
+      const bodyGeo = new THREE.SphereGeometry(0.15, 8, 8)
+      bodyGeo.scale(1, 1.3, 0.9)
+      const body = new THREE.Mesh(bodyGeo, new THREE.MeshStandardMaterial({
+        color: 0x1a1a2a, roughness: 0.8, flatShading: true,
+      }))
+      body.position.y = 0.18
+      body.castShadow = true
+      pg.add(body)
+
+      // White belly
+      const bellyGeo = new THREE.SphereGeometry(0.12, 8, 8)
+      bellyGeo.scale(0.8, 1.1, 0.7)
+      const belly = new THREE.Mesh(bellyGeo, new THREE.MeshStandardMaterial({
+        color: 0xf0f0f0, roughness: 0.8,
+      }))
+      belly.position.set(0, 0.17, 0.04)
+      pg.add(belly)
+
+      // Head
+      const head = new THREE.Mesh(
+        new THREE.SphereGeometry(0.09, 8, 8),
+        new THREE.MeshStandardMaterial({ color: 0x1a1a2a, roughness: 0.8 })
+      )
+      head.position.y = 0.36
+      head.castShadow = true
+      pg.add(head)
+
+      // Eyes
+      const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 })
+      const pupilMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3 })
+      ;[-0.04, 0.04].forEach(xOff => {
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 6), eyeMat)
+        eye.position.set(xOff, 0.38, 0.07)
+        pg.add(eye)
+        const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.01, 6, 6), pupilMat)
+        pupil.position.set(xOff, 0.38, 0.085)
+        pg.add(pupil)
+      })
+
+      // Beak
+      const beak = new THREE.Mesh(
+        new THREE.ConeGeometry(0.025, 0.06, 4),
+        new THREE.MeshStandardMaterial({ color: 0xe8a020, roughness: 0.5 })
+      )
+      beak.rotation.x = Math.PI / 2
+      beak.position.set(0, 0.35, 0.1)
+      pg.add(beak)
+
+      // Flippers — small flat boxes on sides
+      const flipperGeo = new THREE.BoxGeometry(0.02, 0.12, 0.06)
+      const flipperMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2a, roughness: 0.8 })
+      const leftFlipper = new THREE.Mesh(flipperGeo, flipperMat)
+      leftFlipper.position.set(-0.13, 0.2, 0)
+      leftFlipper.rotation.z = 0.3
+      pg.add(leftFlipper)
+      const rightFlipper = new THREE.Mesh(flipperGeo, flipperMat)
+      rightFlipper.position.set(0.13, 0.2, 0)
+      rightFlipper.rotation.z = -0.3
+      pg.add(rightFlipper)
+
+      // Feet
+      const footMat = new THREE.MeshStandardMaterial({ color: 0xe8a020, roughness: 0.5 })
+      ;[-0.04, 0.04].forEach(xOff => {
+        const foot = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.015, 0.06), footMat)
+        foot.position.set(xOff, 0.01, 0.02)
+        pg.add(foot)
+      })
+
+      // Hitbox for clicking
+      const hitbox = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.15, 0.15, 0.5, 8),
+        new THREE.MeshBasicMaterial({ visible: false })
+      )
+      hitbox.position.y = 0.2
+      hitbox.userData = { type: 'penguin', index: i }
+      pg.add(hitbox)
+      this.interactiveObjects.push(hitbox)
+
+      // Store penguin data
+      const penguinData = {
+        group: pg,
+        leftFlipper, rightFlipper,
+        baseY: 0,
+        isDiving: false,
+        divePhase: 0,
+        idleOffset: Math.random() * Math.PI * 2,
+        holeX: lakeX, holeZ: lakeZ,
+      }
+      hitbox.userData.onClick = () => this._penguinDive(penguinData)
+      this.penguins.push(penguinData)
+      this.scene.add(pg)
+    })
+  }
+
+  _penguinDive(penguin) {
+    if (penguin.isDiving) return
+    penguin.isDiving = true
+    penguin.divePhase = 0 // 0=hop, 1=jump, 2=underwater, 3=resurface, 4=victory
+
+    const startTime = performance.now()
+    const startX = penguin.group.position.x
+    const startZ = penguin.group.position.z
+    const holeX = penguin.holeX
+    const holeZ = penguin.holeZ
+
+    const animateDive = () => {
+      const elapsed = performance.now() - startTime
+      const t = elapsed / 1000 // seconds
+
+      if (t < 0.4) {
+        // Phase 0: Hop and turn toward hole
+        const p = t / 0.4
+        penguin.group.position.y = Math.sin(p * Math.PI) * 0.3
+        penguin.group.rotation.y += 0.05
+        penguin.leftFlipper.rotation.z = 0.3 + Math.sin(t * 15) * 0.4
+        penguin.rightFlipper.rotation.z = -(0.3 + Math.sin(t * 15) * 0.4)
+      } else if (t < 0.8) {
+        // Phase 1: Jump toward hole
+        const p = (t - 0.4) / 0.4
+        const eased = p * p
+        penguin.group.position.x = startX + (holeX - startX) * eased
+        penguin.group.position.z = startZ + (holeZ - startZ) * eased
+        penguin.group.position.y = Math.sin(p * Math.PI) * 0.5
+        penguin.group.rotation.x = -p * 0.5
+      } else if (t < 1.6) {
+        // Phase 2: Underwater (shrink down)
+        const p = (t - 0.8) / 0.8
+        penguin.group.position.y = -0.3 * p
+        penguin.group.scale.setScalar(1 - p * 0.3)
+      } else if (t < 2.2) {
+        // Phase 3: Resurface with fish
+        const p = (t - 1.6) / 0.6
+        penguin.group.position.y = -0.3 + p * 0.6
+        penguin.group.scale.setScalar(0.7 + p * 0.3)
+        penguin.group.rotation.x = -0.5 + p * 0.5
+
+        // Show fish on first frame of resurface
+        if (!penguin.fishMesh && p > 0.3) {
+          const fishGeo = new THREE.BoxGeometry(0.08, 0.03, 0.04)
+          fishGeo.translate(0, 0, 0.12)
+          penguin.fishMesh = new THREE.Mesh(fishGeo, new THREE.MeshStandardMaterial({
+            color: 0x6699bb, roughness: 0.5, emissive: 0x334466, emissiveIntensity: 0.3,
+          }))
+          penguin.fishMesh.position.y = 0.36
+          penguin.group.add(penguin.fishMesh)
+        }
+      } else if (t < 3.2) {
+        // Phase 4: Victory waddle
+        const p = (t - 2.2) / 1.0
+        penguin.group.position.y = 0.3
+        penguin.group.rotation.z = Math.sin(p * Math.PI * 4) * 0.15
+        penguin.leftFlipper.rotation.z = 0.3 + Math.sin(p * Math.PI * 6) * 0.5
+        penguin.rightFlipper.rotation.z = -(0.3 + Math.sin(p * Math.PI * 6) * 0.5)
+      } else {
+        // Done — return to original position
+        penguin.group.position.set(startX, 0, startZ)
+        penguin.group.rotation.set(0, penguin.group.rotation.y, 0)
+        penguin.group.scale.setScalar(1)
+        if (penguin.fishMesh) {
+          penguin.group.remove(penguin.fishMesh)
+          penguin.fishMesh.geometry.dispose()
+          penguin.fishMesh.material.dispose()
+          penguin.fishMesh = null
+        }
+        penguin.isDiving = false
+        return
+      }
+
+      requestAnimationFrame(animateDive)
+    }
+    animateDive()
+  }
+
+  // ── Ice Fishing Hut ──
+  _buildIceFishingHole() {}
+
+  _buildIceFishingHut() {
+    const hutX = 12, hutZ = 10
+    const g = new THREE.Group()
+    g.position.set(hutX, 0, hutZ)
+
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x5a3a20, roughness: 0.9, flatShading: true })
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x8b5e3c, roughness: 0.85, flatShading: true })
+    const snowMat = new THREE.MeshStandardMaterial({ color: 0xf0ebe8, roughness: 0.95 })
+
+    // Walls
+    const walls = this._box(1.4, 1.0, 1.2, 0x5a3a20, [0, 0.5, 0], { roughness: 0.9, flatShading: true })
+    walls.castShadow = true
+    g.add(walls)
+
+    // Roof — simple A-frame
+    const roofShape = new THREE.Shape()
+    const hw = 0.85
+    roofShape.moveTo(-hw, 0)
+    roofShape.lineTo(hw, 0)
+    roofShape.lineTo(0, 0.6)
+    roofShape.closePath()
+    const roofGeo = new THREE.ExtrudeGeometry(roofShape, { depth: 1.4, bevelEnabled: false })
+    roofGeo.translate(0, 0, -0.7)
+    const roof = new THREE.Mesh(roofGeo, roofMat)
+    roof.position.y = 1.0
+    roof.castShadow = true
+    g.add(roof)
+
+    // Snow on roof
+    g.add(this._box(0.5, 0.06, 0.8, 0xf0ebe8, [0, 1.35, 0]))
+
+    // Door
+    g.add(this._box(0.3, 0.6, 0.02, 0x3a2510, [0, 0.35, 0.61]))
+
+    // Window with warm glow
+    const windowGlow = this._box(0.2, 0.2, 0.03, 0xf0a830, [0.4, 0.6, 0.61], {
+      emissive: 0xf0a830, emissiveIntensity: 0.6, transparent: true, opacity: 0.9,
+    })
+    g.add(windowGlow)
+
+    // Fishing rod leaning against wall
+    const rod = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.008, 0.005, 1.5, 4),
+      new THREE.MeshStandardMaterial({ color: 0x4a3020, roughness: 0.8 })
+    )
+    rod.position.set(0.85, 0.5, 0.4)
+    rod.rotation.z = -0.3
+    g.add(rod)
+
+    // Fishing line
+    const linePoints = [
+      new THREE.Vector3(0.85, 1.2, 0.4),
+      new THREE.Vector3(0.9, 0.3, 0.6),
+      new THREE.Vector3(0.85, 0.05, 0.8),
+    ]
+    const lineGeo = new THREE.BufferGeometry().setFromPoints(linePoints)
+    const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.5 }))
+    g.add(line)
+
+    // Interior light
+    const light = new THREE.PointLight(0xf0a830, 1.5, 4)
+    light.position.set(0, 0.6, 0.3)
+    g.add(light)
+
+    // Sign
+    const signBoard = new THREE.Mesh(
+      new THREE.BoxGeometry(0.6, 0.25, 0.04),
+      new THREE.MeshStandardMaterial({ color: 0xd4b896, roughness: 0.85 })
+    )
+    signBoard.position.set(1.0, 1.0, 0)
+    signBoard.castShadow = true
+    g.add(signBoard)
+
+    // Sign text using canvas texture
+    const canvas = document.createElement('canvas')
+    canvas.width = 256; canvas.height = 128
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = '#d4b896'
+    ctx.fillRect(0, 0, 256, 128)
+    ctx.fillStyle = '#3a2510'
+    ctx.font = 'bold 28px Georgia, serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('ICE HOLE', 128, 55)
+    ctx.font = '18px Georgia, serif'
+    ctx.fillText('FISHING CO.', 128, 85)
+    const signTex = new THREE.CanvasTexture(canvas)
+    signBoard.material = new THREE.MeshStandardMaterial({ map: signTex, roughness: 0.85 })
+
+    // Hitbox for click
+    const hitbox = new THREE.Mesh(
+      new THREE.BoxGeometry(2, 2, 2),
+      new THREE.MeshBasicMaterial({ visible: false })
+    )
+    hitbox.position.y = 1
+    hitbox.userData = {
+      type: 'building', id: 'ice-fishing-hut',
+      heroTarget: [hutX, 1.0, hutZ],
+      heroPosition: [hutX + 3, 2.5, hutZ + 3],
+    }
+    g.add(hitbox)
+    this.interactiveObjects.push(hitbox)
+
+    this.scene.add(g)
+  }
+
+  // ── Beer Garden ──
+  _buildBeerGarden() {
+    const gx = -8, gz = 6
+    const g = new THREE.Group()
+    g.position.set(gx, 0, gz)
+
+    const iceMat = new THREE.MeshPhysicalMaterial({
+      color: 0xc8dce8, roughness: 0.15, metalness: 0.05,
+      transmission: 0.3, transparent: true, opacity: 0.6,
+      flatShading: true,
+    })
+
+    // Ice table
+    const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.06, 8), iceMat)
+    tableTop.position.set(0, 0.5, 0)
+    tableTop.castShadow = true
+    g.add(tableTop)
+    const tableLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.5, 6), iceMat)
+    tableLeg.position.set(0, 0.25, 0)
+    g.add(tableLeg)
+
+    // Ice benches
+    ;[-0.6, 0.6].forEach(zOff => {
+      const bench = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.06, 0.2), iceMat)
+      bench.position.set(0, 0.3, zOff)
+      bench.castShadow = true
+      g.add(bench)
+      const leg1 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.3, 0.06), iceMat)
+      leg1.position.set(-0.3, 0.15, zOff)
+      g.add(leg1)
+      const leg2 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.3, 0.06), iceMat)
+      leg2.position.set(0.3, 0.15, zOff)
+      g.add(leg2)
+    })
+
+    // Fire pit — stone circle with flames
+    const pitX = -1.5, pitZ = 0
+    const stoneMat = new THREE.MeshStandardMaterial({ color: 0x5a5048, roughness: 0.9, flatShading: true })
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2
+      const stone = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(0.12, 0),
+        stoneMat
+      )
+      stone.position.set(pitX + Math.cos(angle) * 0.3, 0.08, pitZ + Math.sin(angle) * 0.3)
+      stone.rotation.set(Math.random(), Math.random(), Math.random())
+      g.add(stone)
+    }
+
+    // Flames — animated orange/yellow cones
+    this.fireParticles = []
+    for (let i = 0; i < 5; i++) {
+      const flame = new THREE.Mesh(
+        new THREE.ConeGeometry(0.06 + Math.random() * 0.04, 0.2 + Math.random() * 0.15, 6),
+        new THREE.MeshStandardMaterial({
+          color: i < 3 ? 0xf0a020 : 0xe84a23,
+          emissive: i < 3 ? 0xf0a020 : 0xe84a23,
+          emissiveIntensity: 0.8,
+          transparent: true, opacity: 0.85,
+        })
+      )
+      flame.position.set(pitX + (Math.random() - 0.5) * 0.15, 0.2, pitZ + (Math.random() - 0.5) * 0.15)
+      g.add(flame)
+      this.fireParticles.push(flame)
+    }
+
+    // Fire light
+    this.fireLight = new THREE.PointLight(0xf0a020, 2, 5)
+    this.fireLight.position.set(pitX, 0.4, pitZ)
+    g.add(this.fireLight)
+
+    // Beer on table
+    const glass = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.03, 0.025, 0.08, 8),
+      new THREE.MeshPhysicalMaterial({
+        color: 0xf0a830, roughness: 0.1, transmission: 0.5,
+        transparent: true, opacity: 0.7,
+      })
+    )
+    glass.position.set(0.1, 0.57, 0)
+    g.add(glass)
+
+    // Sign
+    const signPost = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.025, 0.03, 1.2, 6),
+      new THREE.MeshStandardMaterial({ color: 0x5a4a3a, roughness: 0.85 })
+    )
+    signPost.position.set(1.0, 0.6, -0.5)
+    signPost.castShadow = true
+    g.add(signPost)
+
+    const signBoard = new THREE.Mesh(
+      new THREE.BoxGeometry(0.7, 0.3, 0.04),
+      new THREE.MeshStandardMaterial({ color: 0xd4b896, roughness: 0.85 })
+    )
+    signBoard.position.set(1.0, 1.1, -0.5)
+    signBoard.rotation.y = -0.3
+    signBoard.castShadow = true
+    g.add(signBoard)
+
+    // Sign text
+    const sCanvas = document.createElement('canvas')
+    sCanvas.width = 256; sCanvas.height = 128
+    const sCtx = sCanvas.getContext('2d')
+    sCtx.fillStyle = '#d4b896'
+    sCtx.fillRect(0, 0, 256, 128)
+    sCtx.fillStyle = '#3a2510'
+    sCtx.font = 'bold 24px Georgia, serif'
+    sCtx.textAlign = 'center'
+    sCtx.textBaseline = 'middle'
+    sCtx.fillText('BEER GARDEN', 128, 55)
+    sCtx.font = '16px Georgia, serif'
+    sCtx.fillText('warm up here', 128, 85)
+    signBoard.material = new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(sCanvas), roughness: 0.85 })
+
+    // String lights above
+    const lightPositions = []
+    for (let i = 0; i < 6; i++) {
+      const t = i / 5
+      lightPositions.push(new THREE.Vector3(
+        -1.5 + t * 3,
+        1.5 - Math.sin(t * Math.PI) * 0.3,
+        -0.5
+      ))
+    }
+    const wireGeo = new THREE.BufferGeometry().setFromPoints(lightPositions)
+    g.add(new THREE.Line(wireGeo, new THREE.LineBasicMaterial({ color: 0x3a3028, transparent: true, opacity: 0.5 })))
+    lightPositions.forEach((pos, i) => {
+      const color = [0xf0c060, 0xe06050, 0x60c0f0][i % 3]
+      const bulb = new THREE.Mesh(
+        new THREE.SphereGeometry(0.03, 6, 6),
+        new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.7, transparent: true, opacity: 0.9 })
+      )
+      bulb.position.copy(pos)
+      g.add(bulb)
+    })
+
+    // Hitbox
+    const hitbox = new THREE.Mesh(
+      new THREE.BoxGeometry(3, 2, 3),
+      new THREE.MeshBasicMaterial({ visible: false })
+    )
+    hitbox.position.set(-0.5, 1, 0)
+    hitbox.userData = {
+      type: 'building', id: 'beer-garden',
+      heroTarget: [gx, 1.0, gz],
+      heroPosition: [gx + 3, 2.0, gz + 3],
+    }
+    g.add(hitbox)
+    this.interactiveObjects.push(hitbox)
+
+    this.scene.add(g)
+  }
+
+  // ── Arctic Fox ──
+  _buildArcticFox() {
+    const fox = new THREE.Group()
+
+    // Body
+    const bodyGeo = new THREE.SphereGeometry(0.2, 8, 8)
+    bodyGeo.scale(1.5, 0.8, 0.9)
+    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xf0eeeb, roughness: 0.85, flatShading: true })
+    const body = new THREE.Mesh(bodyGeo, whiteMat)
+    body.position.y = 0.18
+    body.castShadow = true
+    fox.add(body)
+
+    // Head
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), whiteMat)
+    head.position.set(0.25, 0.28, 0)
+    head.castShadow = true
+    fox.add(head)
+
+    // Snout
+    const snout = new THREE.Mesh(
+      new THREE.ConeGeometry(0.04, 0.1, 6),
+      new THREE.MeshStandardMaterial({ color: 0xe8e0d8, roughness: 0.8 })
+    )
+    snout.rotation.z = -Math.PI / 2
+    snout.position.set(0.35, 0.26, 0)
+    fox.add(snout)
+
+    // Nose
+    const nose = new THREE.Mesh(
+      new THREE.SphereGeometry(0.015, 6, 6),
+      new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 })
+    )
+    nose.position.set(0.39, 0.26, 0)
+    fox.add(nose)
+
+    // Ears
+    const earMat = new THREE.MeshStandardMaterial({ color: 0xf0eeeb, roughness: 0.85, flatShading: true })
+    ;[-0.06, 0.06].forEach(zOff => {
+      const ear = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.08, 4), earMat)
+      ear.position.set(0.22, 0.38, zOff)
+      ear.rotation.z = zOff > 0 ? -0.2 : 0.2
+      fox.add(ear)
+    })
+
+    // Eyes
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.3 })
+    ;[-0.04, 0.04].forEach(zOff => {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.015, 6, 6), eyeMat)
+      eye.position.set(0.32, 0.3, zOff)
+      fox.add(eye)
+    })
+
+    // Tail — fluffy curved shape
+    const tailGeo = new THREE.SphereGeometry(0.1, 8, 6)
+    tailGeo.scale(2, 0.8, 0.8)
+    const tail = new THREE.Mesh(tailGeo, whiteMat)
+    tail.position.set(-0.3, 0.2, 0)
+    tail.rotation.z = 0.3
+    fox.add(tail)
+    // Tail tip
+    const tailTip = new THREE.Mesh(
+      new THREE.SphereGeometry(0.05, 6, 6),
+      new THREE.MeshStandardMaterial({ color: 0xd8d4d0, roughness: 0.85 })
+    )
+    tailTip.position.set(-0.4, 0.23, 0)
+    fox.add(tailTip)
+
+    // Legs
+    const legGeo = new THREE.CylinderGeometry(0.025, 0.02, 0.15, 6)
+    const legMat = new THREE.MeshStandardMaterial({ color: 0xf0eeeb, roughness: 0.85 })
+    const legPositions = [[0.12, 0.075, 0.08], [0.12, 0.075, -0.08], [-0.1, 0.075, 0.08], [-0.1, 0.075, -0.08]]
+    legPositions.forEach(pos => {
+      const leg = new THREE.Mesh(legGeo, legMat)
+      leg.position.set(...pos)
+      fox.add(leg)
+    })
+
+    // Hitbox
+    const hitbox = new THREE.Mesh(
+      new THREE.BoxGeometry(0.6, 0.5, 0.4),
+      new THREE.MeshBasicMaterial({ visible: false })
+    )
+    hitbox.position.y = 0.2
+    hitbox.userData = { type: 'fox' }
+    fox.add(hitbox)
+    this.interactiveObjects.push(hitbox)
+
+    // Patrol path — a loop between buildings
+    this.foxData = {
+      group: fox,
+      path: [
+        new THREE.Vector3(-4, 0, 1),
+        new THREE.Vector3(-2, 0, -4),
+        new THREE.Vector3(3, 0, -5),
+        new THREE.Vector3(5, 0, 2),
+        new THREE.Vector3(2, 0, 6),
+        new THREE.Vector3(-2, 0, 5),
+        new THREE.Vector3(-6, 0, 3),
+      ],
+      pathIndex: 0,
+      pathProgress: 0,
+      speed: 0.4,
+      isSitting: false,
+      sitTimer: 0,
+    }
+
+    fox.position.copy(this.foxData.path[0])
+    this.scene.add(fox)
+  }
+
   // ── Raycaster ──
   _initRaycaster() {
     this.raycaster = new THREE.Raycaster()
     this.mouse = new THREE.Vector2()
 
     this.renderer.domElement.addEventListener('click', (e) => {
+      if (this.isFlying) return // ignore clicks during fly animation
+
       this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1
       this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1
       this.raycaster.setFromCamera(this.mouse, this.camera)
 
-      // Collect all clickable meshes
-      const targets = []
+      // Collect all clickable meshes (cottages + penguins + other interactives)
+      const targets = [...this.interactiveObjects]
       Object.values(this.cottages).forEach(c => {
         c.group.traverse(child => {
           if (child.userData?.type === 'cottage') targets.push(child)
         })
       })
 
-      const hits = this.raycaster.intersectObjects(targets)
+      const hits = this.raycaster.intersectObjects(targets, true)
       if (hits.length > 0) {
-        const beerId = hits[0].object.userData.beerId
-        this.selectedBeer = beerId
-        Object.entries(this.cottages).forEach(([id, c]) => { c.selected = id === beerId })
-        this.selectCallback?.(beerId)
+        // Walk up to find the userData with type
+        let obj = hits[0].object
+        while (obj && !obj.userData?.type) obj = obj.parent
+        if (!obj) return
+
+        const ud = obj.userData
+
+        if (ud.type === 'cottage') {
+          this.selectedBeer = ud.beerId
+          Object.entries(this.cottages).forEach(([id, c]) => { c.selected = id === ud.beerId })
+          this.selectCallback?.(ud.beerId)
+          // Fly in
+          if (ud.heroTarget && ud.heroPosition) {
+            this.flyTo(ud.heroPosition, ud.heroTarget, () => {
+              this.flyToCallback?.(ud.beerId)
+            })
+          }
+        } else if (ud.type === 'penguin') {
+          // Penguin click handled by penguin system
+          ud.onClick?.()
+        } else if (ud.type === 'building') {
+          // Generic building fly-in
+          if (ud.heroTarget && ud.heroPosition) {
+            this.flyTo(ud.heroPosition, ud.heroTarget, () => {
+              this.flyToCallback?.(ud.id)
+            })
+          }
+        }
       }
     })
+  }
+
+  // ── Fly-in Camera ──
+  flyTo(targetPos, lookAt, onDone) {
+    if (this.isFlying) return
+    this.isFlying = true
+
+    // Save current state
+    this.savedCameraState = {
+      position: this.camera.position.clone(),
+      target: this.controls.target.clone(),
+    }
+
+    // Detach controls during animation
+    this.controls.enabled = false
+
+    const duration = 1500
+    const startTime = performance.now()
+    const startPos = this.camera.position.clone()
+    const startTarget = this.controls.target.clone()
+    const endPos = new THREE.Vector3(...targetPos)
+    const endTarget = new THREE.Vector3(...lookAt)
+
+    const easeInOutCubic = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+
+    const animateFly = () => {
+      const elapsed = performance.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      const eased = easeInOutCubic(progress)
+
+      this.camera.position.lerpVectors(startPos, endPos, eased)
+      this.controls.target.lerpVectors(startTarget, endTarget, eased)
+      this.camera.lookAt(this.controls.target)
+
+      if (progress < 1) {
+        requestAnimationFrame(animateFly)
+      } else {
+        this.isFlying = false
+        this.controls.enabled = true
+        onDone?.()
+      }
+    }
+    animateFly()
+  }
+
+  flyBack() {
+    if (!this.savedCameraState || this.isFlying) return
+    this.isFlying = true
+    this.controls.enabled = false
+
+    const duration = 1200
+    const startTime = performance.now()
+    const startPos = this.camera.position.clone()
+    const startTarget = this.controls.target.clone()
+    const endPos = this.savedCameraState.position
+    const endTarget = this.savedCameraState.target
+
+    const easeOutCubic = t => 1 - Math.pow(1 - t, 3)
+
+    const animateBack = () => {
+      const elapsed = performance.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      const eased = easeOutCubic(progress)
+
+      this.camera.position.lerpVectors(startPos, endPos, eased)
+      this.controls.target.lerpVectors(startTarget, endTarget, eased)
+      this.camera.lookAt(this.controls.target)
+
+      if (progress < 1) {
+        requestAnimationFrame(animateBack)
+      } else {
+        this.isFlying = false
+        this.controls.enabled = true
+        this.savedCameraState = null
+        this.deselect()
+        this.selectCallback?.(null)
+        this.flyBackCallback?.()
+      }
+    }
+    animateBack()
   }
 
   // ── Animation Loop ──
@@ -773,6 +1493,68 @@ export class World {
       posAttr.setXYZ(i, x, y, z)
     }
     posAttr.needsUpdate = true
+
+    // Penguin idle waddle
+    if (this.penguins) {
+      this.penguins.forEach(p => {
+        if (p.isDiving) return
+        const waddle = Math.sin(t * 2 + p.idleOffset) * 0.03
+        p.group.position.y = waddle
+        p.group.rotation.z = Math.sin(t * 1.5 + p.idleOffset) * 0.05
+        p.leftFlipper.rotation.z = 0.3 + Math.sin(t * 1.2 + p.idleOffset) * 0.15
+        p.rightFlipper.rotation.z = -(0.3 + Math.sin(t * 1.2 + p.idleOffset) * 0.15)
+      })
+    }
+
+    // Fire pit flames
+    if (this.fireParticles) {
+      this.fireParticles.forEach((flame, i) => {
+        flame.scale.y = 0.8 + Math.sin(t * 5 + i * 2) * 0.3 + Math.random() * 0.1
+        flame.scale.x = 0.9 + Math.sin(t * 3 + i * 1.5) * 0.15
+        flame.position.y = 0.2 + Math.sin(t * 4 + i) * 0.03
+        flame.material.opacity = 0.7 + Math.sin(t * 6 + i * 3) * 0.15
+      })
+      if (this.fireLight) {
+        this.fireLight.intensity = 2 + Math.sin(t * 5) * 0.5 + Math.sin(t * 8) * 0.3
+      }
+    }
+
+    // Arctic fox patrol
+    if (this.foxData && !this.foxData.isSitting) {
+      const fd = this.foxData
+      const from = fd.path[fd.pathIndex]
+      const to = fd.path[(fd.pathIndex + 1) % fd.path.length]
+      fd.pathProgress += fd.speed * 0.008
+
+      if (fd.pathProgress >= 1) {
+        fd.pathProgress = 0
+        fd.pathIndex = (fd.pathIndex + 1) % fd.path.length
+        // Random chance to sit
+        if (Math.random() < 0.2) {
+          fd.isSitting = true
+          fd.sitTimer = 3 + Math.random() * 4 // sit 3-7 seconds
+        }
+      }
+
+      const p = fd.pathProgress
+      const eased = p * p * (3 - 2 * p) // smoothstep
+      fd.group.position.lerpVectors(from, to, eased)
+      fd.group.position.y = 0
+
+      // Face movement direction
+      const dx = to.x - from.x, dz = to.z - from.z
+      fd.group.rotation.y = Math.atan2(dx, dz)
+
+      // Walk bob
+      fd.group.position.y = Math.sin(t * 8) * 0.02
+    } else if (this.foxData?.isSitting) {
+      this.foxData.sitTimer -= 0.016
+      // Head tilt while sitting
+      this.foxData.group.children[1].rotation.z = Math.sin(t * 2) * 0.1 // head tilt
+      if (this.foxData.sitTimer <= 0) {
+        this.foxData.isSitting = false
+      }
+    }
 
     this.controls.update()
     this.renderer.render(this.scene, this.camera)

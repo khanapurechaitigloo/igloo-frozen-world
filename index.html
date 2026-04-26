@@ -114,6 +114,19 @@
       }
 
       @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+      #back-btn {
+        position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+        background: rgba(255,255,255,0.12); backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255,255,255,0.15); border-radius: 28px;
+        color: rgba(255,255,255,0.8); font-family: 'Outfit', sans-serif;
+        font-size: 14px; font-weight: 400; padding: 10px 24px;
+        cursor: pointer; transition: all 0.3s ease; z-index: 10;
+        pointer-events: auto; letter-spacing: 0.04em;
+      }
+      #back-btn:hover { background: rgba(255,255,255,0.2); color: #fff; }
+      #back-btn.hidden { opacity: 0; pointer-events: none; transform: translateX(-50%) translateY(10px); }
     </style>
   </head>
   <body>
@@ -142,6 +155,7 @@
         <span class="title-sub">frozen craft</span>
       </div>
       <div class="hint-bar">click a cottage to explore · drag to orbit · scroll to zoom</div>
+      <button id="back-btn" class="hidden">← Back to world</button>
 
       <!-- Beer detail panel -->
       <div id="beer-panel">

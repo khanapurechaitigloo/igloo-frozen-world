@@ -93,6 +93,9 @@ export class World {
     this.controls.minDistance = 8
     this.controls.maxDistance = 50
     this.controls.target.set(0, 0, 0)
+    this.controls.screenSpacePanning = true
+    this.controls.enablePan = true
+    this.controls.panSpeed = 0.8
   }
 
   // ── Lights ──
@@ -705,7 +708,7 @@ export class World {
 
   // ── Penguins + Ice Hole ──
   _buildPenguinsAndHole() {
-    const lakeX = 10, lakeZ = 8
+    const lakeX = -2, lakeZ = 3
     const holeRadius = 0.8
 
     // Frozen lake — dark reflective circle
@@ -929,7 +932,7 @@ export class World {
   _buildIceFishingHole() {}
 
   _buildIceFishingHut() {
-    const hutX = 12, hutZ = 10
+    const hutX = 4, hutZ = 6
     const g = new THREE.Group()
     g.position.set(hutX, 0, hutZ)
 
@@ -1036,7 +1039,7 @@ export class World {
 
   // ── Beer Garden ──
   _buildBeerGarden() {
-    const gx = -8, gz = 6
+    const gx = -4, gz = 4
     const g = new THREE.Group()
     g.position.set(gx, 0, gz)
 
@@ -1307,8 +1310,9 @@ export class World {
     this.renderer.domElement.addEventListener('click', (e) => {
       if (this.isFlying) return // ignore clicks during fly animation
 
-      this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1
-      this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1
+      const rect = this.renderer.domElement.getBoundingClientRect()
+      this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
+      this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
       this.raycaster.setFromCamera(this.mouse, this.camera)
 
       // Collect all clickable meshes (cottages + penguins + other interactives)

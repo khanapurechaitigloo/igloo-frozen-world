@@ -157,12 +157,12 @@ export class World {
         float twinkle = 0.5 + 0.5 * sin(t * 3.0 + hash(floor(starUv * 400.0)) * 100.0);
         sky += stars * twinkle * 0.5;
 
-        // Aurora bands — 8 distinct curtains
+        // Aurora bands — 12 distinct curtains
         vec3 aurora = vec3(0.0);
-        for (int i = 0; i < 8; i++) {
+        for (int i = 0; i < 12; i++) {
           float fi = float(i);
-          float bandY = 0.15 + fi * 0.03;
-          float thickness = 0.05 + fi * 0.008;
+          float bandY = 0.12 + fi * 0.025;
+          float thickness = 0.045 + fi * 0.006;
           float drift = sin(t * 0.3 + fi * 1.2) * 0.12;
           // Map UV.x to a cylinder angle → sample noise on a torus → seamless wrap
           float angle = vUv.x * 6.2832;  // 0..2π
@@ -176,7 +176,7 @@ export class World {
 
           // Color shift per band — greens, teals, magentas
           vec3 col1 = vec3(0.1, 0.8, 0.3);
-          vec3 col2 = mix(vec3(0.05, 0.5, 0.5), vec3(0.3, 0.2, 0.6), fi / 7.0);
+          vec3 col2 = mix(vec3(0.05, 0.5, 0.5), vec3(0.3, 0.2, 0.6), fi / 11.0);
           aurora += mix(col1, col2, n) * curtain * 2.5;
         }
 

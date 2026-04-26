@@ -1,6 +1,6 @@
 import React, { Suspense, useState, useCallback, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls, Environment, Stars } from '@react-three/drei'
+import { OrbitControls, Stars } from '@react-three/drei'
 import * as THREE from 'three'
 
 import SnowTerrain from './SnowTerrain'
@@ -179,7 +179,7 @@ export default function WorldScene({ selectedBeer, onSelectBeer, flyTarget }) {
         <CameraController flyTarget={flyTarget} controlsRef={controlsRef} />
 
         {/* ─── ENVIRONMENT MAP ─── */}
-        <Environment preset="night" />
+        {/* Disabled — our custom lighting is sufficient and Suspense-safe */}
 
         {/* ─── CONTROLS ─── */}
         <OrbitControls

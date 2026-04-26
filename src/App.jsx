@@ -41,11 +41,13 @@ export default function App() {
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       {/* ─── 3D WORLD ─── */}
-      <WorldScene
-        selectedBeer={selectedBeer}
-        onSelectBeer={handleSelectBeer}
-        flyTarget={flyTarget}
-      />
+      {!showSplash && (
+        <WorldScene
+          selectedBeer={selectedBeer}
+          onSelectBeer={handleSelectBeer}
+          flyTarget={flyTarget}
+        />
+      )}
 
       {/* ─── AMBIENT AUDIO ─── */}
       <AmbientAudio playing={audioPlaying} />

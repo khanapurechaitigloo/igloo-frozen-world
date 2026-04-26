@@ -8,9 +8,7 @@ export const BEERS = [
     tags: ['citrus', 'coriander', 'wheat'],
     description: 'Bright, zesty, and endlessly curious — like a conversation that never gets dull.',
     mood: 'sunny and curious',
-    environment: 'orange grove',
     x: -6, z: -3,
-    shape: 'dome',
   },
   {
     id: 'deep-ocean',
@@ -21,9 +19,7 @@ export const BEERS = [
     tags: ['chocolate', 'espresso', 'molasses'],
     description: 'Dark, bottomless, and full of hidden currents. Not for the faint of palate.',
     mood: 'deep and brooding',
-    environment: 'ocean cave',
     x: 6, z: -3,
-    shape: 'cave',
   },
   {
     id: 'arctic-dawn',
@@ -34,9 +30,7 @@ export const BEERS = [
     tags: ['tropical', 'juicy', 'hazy'],
     description: 'First light breaking over frozen peaks — soft, warm, and impossibly vivid.',
     mood: 'optimistic glow',
-    environment: 'sunrise terrace',
     x: 0, z: -8,
-    shape: 'terrace',
   },
   {
     id: 'frost-bite',
@@ -47,9 +41,7 @@ export const BEERS = [
     tags: ['crisp', 'pine', 'clean'],
     description: 'The snap of cold air on your face when you open the tent flap at dawn. Clean. Awake.',
     mood: 'sharp and awake',
-    environment: 'ice crystal garden',
     x: -5, z: 5,
-    shape: 'crystal',
   },
   {
     id: 'tundra-blaze',
@@ -60,9 +52,7 @@ export const BEERS = [
     tags: ['campfire', 'smoke', 'caramel'],
     description: 'The warmth of a bonfire in the middle of nowhere. Smoke, amber light, stories.',
     mood: 'warm and smoky',
-    environment: 'campfire circle',
     x: 5, z: 5,
-    shape: 'bonfire',
   },
   {
     id: 'polar-night',
@@ -73,21 +63,33 @@ export const BEERS = [
     tags: ['plum', 'leather', 'vanilla'],
     description: 'Aged in the dark, slow to reveal its layers. Patient drinkers get the best rewards.',
     mood: 'mysterious and aged',
-    environment: 'barrel cellar',
     x: 0, z: 0,
-    shape: 'cellar',
   },
 ]
 
-export const DISTRICTS = {
-  basecamp: {
-    name: 'Basecamp',
-    description: 'The frozen heart of Igloo Craft Beers — where the brewery breathes.',
-    x: 0, z: 0, scale: 1,
+export const COTTAGE_STYLES = {
+  'wit-and-wisdom': {
+    wallColor: '#c4955a', roofColor: '#8b5e3c', trimColor: '#f5e6c8',
+    windowColor: '#f0a830', roofPitch: 0.9, width: 1.8, depth: 1.4, wallHeight: 0.9,
   },
-  gallery: {
-    name: 'The Taproom',
-    description: 'Six beers, six worlds. Step into the one that calls to you.',
-    x: 0, z: 0, scale: 1,
+  'deep-ocean': {
+    wallColor: '#3a3a50', roofColor: '#2a2a3a', trimColor: '#4a5a7a',
+    windowColor: '#2d4a7a', roofPitch: 1.2, width: 1.6, depth: 1.6, wallHeight: 0.8,
+  },
+  'arctic-dawn': {
+    wallColor: '#d4a574', roofColor: '#c47530', trimColor: '#ffd6a5',
+    windowColor: '#ff8c42', roofPitch: 1.0, width: 2.0, depth: 1.6, wallHeight: 1.0,
+  },
+  'frost-bite': {
+    wallColor: '#b8c8d8', roofColor: '#7090a8', trimColor: '#d8eaf4',
+    windowColor: '#55c5f5', roofPitch: 1.3, width: 1.6, depth: 1.4, wallHeight: 0.7,
+  },
+  'tundra-blaze': {
+    wallColor: '#6b4a30', roofColor: '#4a2a18', trimColor: '#c1694f',
+    windowColor: '#e84a23', roofPitch: 0.8, width: 2.2, depth: 1.8, wallHeight: 1.0,
+  },
+  'polar-night': {
+    wallColor: '#4a3a5a', roofColor: '#3d2c5e', trimColor: '#6a5080',
+    windowColor: '#9b59b6', roofPitch: 1.1, width: 1.8, depth: 1.6, wallHeight: 0.6,
   },
 }

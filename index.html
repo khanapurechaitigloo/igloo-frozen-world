@@ -9,26 +9,160 @@
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body, #root { width: 100%; height: 100%; overflow: hidden; background: #0d0f1a; }
+      html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0c1a; }
       body { font-family: 'Outfit', sans-serif; }
+      canvas { display: block; width: 100%; height: 100%; }
 
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
+      /* ─── SPLASH ─── */
+      #splash {
+        position: fixed; inset: 0; z-index: 100;
+        display: flex; align-items: center; justify-content: center;
+        background: radial-gradient(ellipse at center, rgba(10, 12, 26, 0.88) 0%, rgba(10, 12, 26, 0.97) 100%);
+        animation: fadeIn 0.8s ease-out;
+        transition: opacity 0.6s ease;
       }
-      @keyframes slideUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+      #splash.hidden { opacity: 0; pointer-events: none; }
+      .splash-inner { text-align: center; }
+      .splash-flake { font-size: 64px; margin-bottom: 8px; filter: drop-shadow(0 0 20px rgba(100, 180, 255, 0.4)); }
+      .splash-title {
+        font-family: 'Caveat', cursive; font-size: 72px; font-weight: 700;
+        color: rgba(255,255,255,0.92); margin: 0 0 4px 0;
+        letter-spacing: 0.2em;
+        text-shadow: 0 0 40px rgba(100,160,255,0.3), 0 0 80px rgba(100,160,255,0.1);
+      }
+      .splash-sub {
+        font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 300;
+        color: rgba(255,255,255,0.4); letter-spacing: 0.4em; text-transform: uppercase;
+        margin: 0 0 32px 0;
+      }
+      .splash-desc {
+        font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 300;
+        color: rgba(255,255,255,0.55); line-height: 1.8; margin: 0 0 40px 0;
+      }
+      .splash-btn {
+        font-family: 'Caveat', cursive; font-size: 22px; font-weight: 600;
+        color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.15); border-radius: 40px;
+        padding: 14px 48px; cursor: pointer; backdrop-filter: blur(10px);
+        transition: all 0.3s ease; letter-spacing: 0.05em;
+      }
+      .splash-btn:hover { background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.3); }
+      .splash-hint {
+        font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 300;
+        color: rgba(255,255,255,0.2); letter-spacing: 0.08em; margin-top: 40px; white-space: nowrap;
       }
 
-      button:hover {
-        background: rgba(255, 255, 255, 0.14) !important;
-        border-color: rgba(255, 255, 255, 0.3) !important;
+      /* ─── HUD ─── */
+      #hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+      #hud.hidden { display: none; }
+      .title-bar { position: absolute; top: 20px; left: 20px; display: flex; flex-direction: column; }
+      .title-text {
+        font-family: 'Caveat', cursive; font-size: 32px; font-weight: 700;
+        color: rgba(255,255,255,0.85); letter-spacing: 0.15em;
+        text-shadow: 0 0 20px rgba(100,160,255,0.3);
       }
+      .title-sub {
+        font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 300;
+        color: rgba(255,255,255,0.45); letter-spacing: 0.3em; text-transform: uppercase;
+        margin-top: -2px; margin-left: 2px;
+      }
+      .hint-bar {
+        position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+        font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 300;
+        color: rgba(255,255,255,0.3); letter-spacing: 0.08em; white-space: nowrap;
+      }
+
+      /* ─── BEER PANEL ─── */
+      #beer-panel {
+        position: absolute; bottom: 24px; right: 24px; width: 320px;
+        max-width: calc(100vw - 48px);
+        background: rgba(12,14,26,0.88); backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px); border-radius: 16px;
+        padding: 28px 24px; border: 1px solid rgba(255,255,255,0.08);
+        box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+        pointer-events: auto; opacity: 0; transform: translateY(20px);
+        transition: opacity 0.4s ease, transform 0.4s ease;
+      }
+      #beer-panel.visible { opacity: 1; transform: translateY(0); }
+      #beer-panel .close-btn {
+        position: absolute; top: 12px; right: 16px; background: none; border: none;
+        color: rgba(255,255,255,0.5); font-size: 18px; cursor: pointer; padding: 4px 8px;
+      }
+      #beer-panel .close-btn:hover { color: rgba(255,255,255,0.8); }
+      #beer-panel .beer-name {
+        font-family: 'Caveat', cursive; font-size: 28px; font-weight: 700;
+        color: #fff; margin: 0 0 4px 0;
+      }
+      #beer-panel .beer-style {
+        font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 400;
+        color: rgba(255,255,255,0.5); margin: 0 0 12px 0; letter-spacing: 0.05em;
+      }
+      #beer-panel .beer-desc {
+        font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 300;
+        color: rgba(255,255,255,0.75); line-height: 1.6; margin: 0 0 16px 0;
+      }
+      .tag-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+      .tag {
+        font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 400;
+        color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.08);
+        border-radius: 20px; padding: 4px 12px; letter-spacing: 0.04em;
+      }
+      .accent-line { width: 40px; height: 2px; border-radius: 1px; margin-bottom: 12px; }
+      #beer-panel .beer-mood {
+        font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 300;
+        color: rgba(255,255,255,0.35); font-style: italic; margin: 0; letter-spacing: 0.06em;
+      }
+
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
   </head>
   <body>
+    <!-- Three.js canvas injected here -->
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+
+    <!-- Splash screen -->
+    <div id="splash">
+      <div class="splash-inner">
+        <div class="splash-flake">❄</div>
+        <h1 class="splash-title">IGLOO</h1>
+        <p class="splash-sub">craft beers · frozen world</p>
+        <p class="splash-desc">
+          Step into a frozen craft wonderland.<br />
+          Six beers. Six worlds. Your adventure.
+        </p>
+        <button class="splash-btn" id="enter-btn">Enter the World</button>
+        <p class="splash-hint">drag to orbit · scroll to zoom · click to explore</p>
+      </div>
+    </div>
+
+    <!-- HUD overlay -->
+    <div id="hud" class="hidden">
+      <div class="title-bar">
+        <span class="title-text">IGLOO</span>
+        <span class="title-sub">frozen craft</span>
+      </div>
+      <div class="hint-bar">click a cottage to explore · drag to orbit · scroll to zoom</div>
+
+      <!-- Beer detail panel -->
+      <div id="beer-panel">
+        <button class="close-btn" id="close-panel">✕</button>
+        <h2 class="beer-name" id="panel-name"></h2>
+        <p class="beer-style" id="panel-style"></p>
+        <p class="beer-desc" id="panel-desc"></p>
+        <div class="tag-row" id="panel-tags"></div>
+        <div class="accent-line" id="panel-accent"></div>
+        <p class="beer-mood" id="panel-mood"></p>
+      </div>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>

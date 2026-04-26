@@ -161,14 +161,14 @@ export class World {
         vec3 aurora = vec3(0.0);
         for (int i = 0; i < 5; i++) {
           float fi = float(i);
-          float bandY = 0.32 + fi * 0.05;
-          float thickness = 0.06 + fi * 0.01;
-          float drift = sin(t * 0.3 + fi * 1.2) * 0.1;
+          float bandY = 0.38 + fi * 0.06;
+          float thickness = 0.08 + fi * 0.015;
+          float drift = sin(t * 0.3 + fi * 1.2) * 0.12;
           // Map UV.x to a cylinder angle → sample noise on a torus → seamless wrap
           float angle = vUv.x * 6.2832;  // 0..2π
           float cx = cos(angle);
           float cy = sin(angle);
-          float warp = fbm(vec2(cx * 2.0 + t * 0.1 + fi * 0.5, cy * 2.0 + vUv.y * 1.5)) * 0.15;
+          float warp = fbm(vec2(cx * 2.0 + t * 0.1 + fi * 0.5, cy * 2.0 + vUv.y * 1.5)) * 0.18;
           float curtain = smoothstep(bandY - thickness, bandY, vUv.y + warp + drift)
                         * smoothstep(bandY + thickness, bandY, vUv.y + warp + drift);
           float n = fbm(vec2(cx * 3.0 + t * 0.2 + fi, cy * 3.0 + vUv.y * 2.0 + t * 0.1));
@@ -177,10 +177,10 @@ export class World {
           // Color shift per band — greens, teals, magentas
           vec3 col1 = vec3(0.1, 0.8, 0.3);
           vec3 col2 = mix(vec3(0.05, 0.5, 0.5), vec3(0.3, 0.2, 0.6), fi / 4.0);
-          aurora += mix(col1, col2, n) * curtain * 1.5;
+          aurora += mix(col1, col2, n) * curtain * 2.5;
         }
 
-        float pulse = 0.7 + sin(t * 1.5) * 0.3;
+        float pulse = 0.75 + sin(t * 1.5) * 0.25;
         aurora *= pulse;
 
         gl_FragColor = vec4(sky + aurora, 1.0);

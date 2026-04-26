@@ -29,10 +29,18 @@ export default function IglooBrewery({ position = [0, 0, 0] }) {
         />
       </mesh>
 
-      {/* Snow cap on top */}
-      <mesh position={[0, 3.4, 0]}>
-        <sphereGeometry args={[1.2, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.3]} />
-        <meshStandardMaterial color="#f5f0ef" roughness={0.9} metalness={0} />
+      {/* Snow patches on the dome — not a separate floating cap */}
+      <mesh position={[0, 2.8, 0.5]}>
+        <sphereGeometry args={[0.6, 6, 4]} />
+        <meshStandardMaterial color="#f5f0ef" roughness={0.95} metalness={0} flatShading />
+      </mesh>
+      <mesh position={[-0.8, 2.5, -0.3]}>
+        <sphereGeometry args={[0.4, 6, 4]} />
+        <meshStandardMaterial color="#f0ebe8" roughness={0.95} metalness={0} flatShading />
+      </mesh>
+      <mesh position={[0.6, 2.6, -0.6]}>
+        <sphereGeometry args={[0.35, 6, 4]} />
+        <meshStandardMaterial color="#f2edeb" roughness={0.95} metalness={0} flatShading />
       </mesh>
 
       {/* Door frame — rectangular opening with warm glow */}
@@ -75,11 +83,11 @@ export default function IglooBrewery({ position = [0, 0, 0] }) {
 function SmokeParticles({ position }) {
   const groupRef = useRef()
   const particles = useMemo(() =>
-    Array.from({ length: 5 }, (_, i) => ({
-      offset: i * 0.4,
-      speed: 0.3 + Math.random() * 0.2,
-      x: (Math.random() - 0.5) * 0.3,
-      scale: 0.08 + Math.random() * 0.06,
+    Array.from({ length: 12 }, (_, i) => ({
+      offset: i * 0.3,
+      speed: 0.2 + Math.random() * 0.15,
+      x: (Math.random() - 0.5) * 0.5,
+      scale: 0.15 + Math.random() * 0.1,
     }))
   , [])
 
@@ -88,11 +96,11 @@ function SmokeParticles({ position }) {
     const t = state.clock.elapsedTime
     groupRef.current.children.forEach((child, i) => {
       const p = particles[i]
-      const cycle = ((t * p.speed + p.offset) % 3) / 3
-      child.position.y = cycle * 1.5
-      child.position.x = p.x + Math.sin(t * 0.5 + i) * 0.1
-      child.scale.setScalar(p.scale * (1 + cycle * 2))
-      child.material.opacity = 0.15 * (1 - cycle)
+      const cycle = ((t * p.speed + p.offset) % 4) / 4
+      child.position.y = cycle * 3.0
+      child.position.x = p.x + Math.sin(t * 0.5 + i) * 0.2
+      child.scale.setScalar(p.scale * (1 + cycle * 4))
+      child.material.opacity = 0.45 * (1 - cycle * 0.8)
     })
   })
 
@@ -100,12 +108,14 @@ function SmokeParticles({ position }) {
     <group ref={groupRef} position={position}>
       {particles.map((_, i) => (
         <mesh key={i}>
-          <sphereGeometry args={[1, 6, 6]} />
+          <sphereGeometry args={[1, 8, 8]} />
           <meshStandardMaterial
-            color="#c0b8b0"
+            color="#a8a098"
             transparent
-            opacity={0.15}
+            opacity={0.45}
             depthWrite={false}
+            emissive="#888078"
+            emissiveIntensity={0.3}
           />
         </mesh>
       ))}

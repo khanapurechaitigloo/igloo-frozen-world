@@ -64,8 +64,8 @@ export default function AuroraSky() {
         float n3 = fbm(base * 8.0 + vec2(t * 0.2, t * -0.06));
         float aurora = n1 * 0.5 + n2 * 0.35 + n3 * 0.15;
 
-        // Curtain mask — aurora in upper portion of sky
-        float curtain = smoothstep(0.3, 0.45, vUv.y) * smoothstep(0.95, 0.7, vUv.y);
+        // Curtain mask — aurora sits low on the horizon
+        float curtain = smoothstep(0.05, 0.18, vUv.y) * smoothstep(0.65, 0.35, vUv.y);
 
         // Color palette — greens, cyans, hints of purple
         vec3 col1 = vec3(0.1, 0.7, 0.25);

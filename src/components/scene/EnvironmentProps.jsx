@@ -72,8 +72,9 @@ export function Lantern({ position }) {
     if (lightRef.current) {
       const t = state.clock.elapsedTime
       lightRef.current.intensity =
-        1.2 + Math.sin(t * 3 + position[0] * 5) * 0.15 +
-        Math.sin(t * 7 + position[2] * 3) * 0.08
+        1.2 + Math.sin(t * 3 + position[0] * 5) * 0.5 +
+        Math.sin(t * 7 + position[2] * 3) * 0.3 +
+        Math.sin(t * 11 + position[0]) * 0.2
     }
   })
 

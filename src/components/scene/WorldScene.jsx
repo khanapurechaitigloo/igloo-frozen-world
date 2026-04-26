@@ -1,4 +1,4 @@
-import React, { Suspense, useState, useCallback } from 'react'
+import React, { Suspense, useState, useCallback, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Environment, Stars } from '@react-three/drei'
 import * as THREE from 'three'
@@ -9,6 +9,7 @@ import IglooBrewery from './IglooBrewery'
 import BeerCottage from './BeerCottage'
 import Snowfall from './Snowfall'
 import StringLights from './StringLights'
+import CameraController from './CameraController'
 import {
   SnowPineTree,
   SnowyBoulder,
@@ -23,8 +24,9 @@ import { BEERS } from '../../data/beers'
  * WorldScene — the frozen craft wonderland.
  * Composes all scene elements into one living world.
  */
-export default function WorldScene({ selectedBeer, onSelectBeer }) {
+export default function WorldScene({ selectedBeer, onSelectBeer, flyTarget }) {
   const [hovered, setHovered] = useState(null)
+  const controlsRef = useRef()
 
   const handleBeerClick = useCallback((id) => {
     onSelectBeer(id === selectedBeer ? null : id)
@@ -173,11 +175,15 @@ export default function WorldScene({ selectedBeer, onSelectBeer }) {
           <FencePost key={`fence-${i}`} position={f.pos} rotation={f.rot} />
         ))}
 
+        {/* ─── CAMERA CONTROLLER ─── */}
+        <CameraController flyTarget={flyTarget} controlsRef={controlsRef} />
+
         {/* ─── ENVIRONMENT MAP ─── */}
         <Environment preset="night" />
 
         {/* ─── CONTROLS ─── */}
         <OrbitControls
+          ref={controlsRef}
           enablePan
           enableZoom
           enableRotate

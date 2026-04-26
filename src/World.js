@@ -161,8 +161,8 @@ export class World {
         vec3 aurora = vec3(0.0);
         for (int i = 0; i < 5; i++) {
           float fi = float(i);
-          float bandY = 0.38 + fi * 0.06;
-          float thickness = 0.08 + fi * 0.015;
+          float bandY = 0.18 + fi * 0.04;
+          float thickness = 0.07 + fi * 0.012;
           float drift = sin(t * 0.3 + fi * 1.2) * 0.12;
           // Map UV.x to a cylinder angle → sample noise on a torus → seamless wrap
           float angle = vUv.x * 6.2832;  // 0..2π

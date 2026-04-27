@@ -850,12 +850,12 @@ export class World {
 
     // Penguin area lights — warm pool of light so they're visible
     const penguinLight = new THREE.PointLight(0xffe0b0, 2.5, 8)
-    penguinLight.position.set(centerX, 3, centerZ + 1)
+    penguinLight.position.set(lakeX, 3, lakeZ + 1)
     this.scene.add(penguinLight)
 
     // Subtle blue-ish fill from below (ice reflection)
     const iceGlow = new THREE.PointLight(0x88bbff, 0.8, 5)
-    iceGlow.position.set(centerX, 0.2, centerZ)
+    iceGlow.position.set(lakeX, 0.2, lakeZ)
     this.scene.add(iceGlow)
   }
 

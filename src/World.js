@@ -711,8 +711,8 @@ export class World {
     const lakeX = -2, lakeZ = 3
     const holeRadius = 0.8
 
-    // Frozen lake — dark reflective circle
-    const lakeGeo = new THREE.CircleGeometry(3, 32)
+    // Frozen lake — dark reflective circle (larger to fit spread penguins)
+    const lakeGeo = new THREE.CircleGeometry(4.5, 32)
     lakeGeo.rotateX(-Math.PI / 2)
     const lakeMat = new THREE.MeshStandardMaterial({
       color: 0x1a2a3a, roughness: 0.1, metalness: 0.3,
@@ -742,23 +742,23 @@ export class World {
     ring.position.set(lakeX, 0.035, lakeZ)
     this.scene.add(ring)
 
-    // Create 3 penguins
+    // Create 3 penguins — spread out around the lake
     this.penguins = []
     const penguinPositions = [
-      [lakeX - 0.6, 0, lakeZ + 0.3],
-      [lakeX + 0.5, 0, lakeZ - 0.4],
-      [lakeX + 0.1, 0, lakeZ + 0.7],
+      [lakeX - 1.8, 0, lakeZ + 1.2],   // left of hole
+      [lakeX + 1.6, 0, lakeZ - 1.0],   // right-front of hole
+      [lakeX + 0.3, 0, lakeZ + 2.0],   // behind hole
     ]
 
     penguinPositions.forEach((pos, i) => {
       const pg = new THREE.Group()
       pg.position.set(...pos)
 
-      // Body — oval
+      // Body — oval (brighter blue-gray for visibility)
       const bodyGeo = new THREE.SphereGeometry(0.15, 8, 8)
       bodyGeo.scale(1, 1.3, 0.9)
       const body = new THREE.Mesh(bodyGeo, new THREE.MeshStandardMaterial({
-        color: 0x1a1a2a, roughness: 0.8, flatShading: true,
+        color: 0x2a3a4a, roughness: 0.6, flatShading: true,
       }))
       body.position.y = 0.18
       body.castShadow = true
@@ -773,10 +773,10 @@ export class World {
       belly.position.set(0, 0.17, 0.04)
       pg.add(belly)
 
-      // Head
+      // Head (brighter to match body)
       const head = new THREE.Mesh(
         new THREE.SphereGeometry(0.09, 8, 8),
-        new THREE.MeshStandardMaterial({ color: 0x1a1a2a, roughness: 0.8 })
+        new THREE.MeshStandardMaterial({ color: 0x2a3a4a, roughness: 0.6 })
       )
       head.position.y = 0.36
       head.castShadow = true
@@ -805,7 +805,7 @@ export class World {
 
       // Flippers — small flat boxes on sides
       const flipperGeo = new THREE.BoxGeometry(0.02, 0.12, 0.06)
-      const flipperMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2a, roughness: 0.8 })
+      const flipperMat = new THREE.MeshStandardMaterial({ color: 0x2a3a4a, roughness: 0.6 })
       const leftFlipper = new THREE.Mesh(flipperGeo, flipperMat)
       leftFlipper.position.set(-0.13, 0.2, 0)
       leftFlipper.rotation.z = 0.3
@@ -848,15 +848,22 @@ export class World {
       this.scene.add(pg)
     })
 
-    // Penguin area lights — warm pool of light so they're visible
-    const penguinLight = new THREE.PointLight(0xffe0b0, 2.5, 8)
-    penguinLight.position.set(lakeX, 3, lakeZ + 1)
+    // Penguin area lights — bright warm pool
+    const penguinLight = new THREE.PointLight(0xffe0b0, 4.0, 12)
+    penguinLight.position.set(lakeX, 4, lakeZ + 1)
     this.scene.add(penguinLight)
 
-    // Subtle blue-ish fill from below (ice reflection)
-    const iceGlow = new THREE.PointLight(0x88bbff, 0.8, 5)
-    iceGlow.position.set(lakeX, 0.2, lakeZ)
+    // Blue-ish fill from below (ice reflection)
+    const iceGlow = new THREE.PointLight(0x88bbff, 1.5, 8)
+    iceGlow.position.set(lakeX, 0.3, lakeZ)
     this.scene.add(iceGlow)
+
+    // Extra spotlight from above for drama
+    const spotLight = new THREE.SpotLight(0xffffff, 2.0, 15, Math.PI / 4, 0.5)
+    spotLight.position.set(lakeX, 6, lakeZ)
+    spotLight.target.position.set(lakeX, 0, lakeZ)
+    this.scene.add(spotLight)
+    this.scene.add(spotLight.target)
   }
 
   _penguinDive(penguin) {

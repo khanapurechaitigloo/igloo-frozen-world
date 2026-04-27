@@ -847,10 +847,20 @@ export class World {
       this.penguins.push(penguinData)
       this.scene.add(pg)
     })
+
+    // Penguin area lights — warm pool of light so they're visible
+    const penguinLight = new THREE.PointLight(0xffe0b0, 2.5, 8)
+    penguinLight.position.set(centerX, 3, centerZ + 1)
+    this.scene.add(penguinLight)
+
+    // Subtle blue-ish fill from below (ice reflection)
+    const iceGlow = new THREE.PointLight(0x88bbff, 0.8, 5)
+    iceGlow.position.set(centerX, 0.2, centerZ)
+    this.scene.add(iceGlow)
   }
 
   _penguinDive(penguin) {
-    if (penguin.isDiving) return
+    if (!penguin || penguin.isDiving) return
     penguin.isDiving = true
     penguin.divePhase = 0 // 0=hop, 1=jump, 2=underwater, 3=resurface, 4=victory
 
@@ -1343,8 +1353,18 @@ export class World {
             })
           }
         } else if (ud.type === 'penguin') {
-          // Penguin click handled by penguin system
-          ud.onClick?.()
+          // Penguin click — wrap in try-catch to prevent scene crash
+          try { ud.onClick?.() } catch (err) { console.warn('Penguin click error:', err) }
+        } else if (ud.type === 'firepit') {
+          try { ud.onClick?.() } catch (err) { console.warn('Fire pit click error:', err) }
+        } else if (ud.type === 'hut') {
+          if (ud.heroTarget && ud.heroPosition) {
+            this.flyTo(ud.heroPosition, ud.heroTarget, () => {
+              this.flyToCallback?.(ud.id)
+            })
+          }
+        } else if (ud.type === 'fox') {
+          try { ud.onClick?.() } catch (err) { console.warn('Fox click error:', err) }
         } else if (ud.type === 'building') {
           // Generic building fly-in
           if (ud.heroTarget && ud.heroPosition) {
@@ -1501,7 +1521,7 @@ export class World {
     // Penguin idle waddle
     if (this.penguins) {
       this.penguins.forEach(p => {
-        if (p.isDiving) return
+        if (p.isDiving) return // don't fight with dive animation
         const waddle = Math.sin(t * 2 + p.idleOffset) * 0.03
         p.group.position.y = waddle
         p.group.rotation.z = Math.sin(t * 1.5 + p.idleOffset) * 0.05
